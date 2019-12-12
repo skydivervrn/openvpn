@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-ENTITYNAME=${ENTITYNAME:-EntityName}
+ENTITYNAME=${ENTITYNAME:-server}
 
 display_usage() {
   echo
@@ -26,13 +26,12 @@ crt() {
   echo "./easyrsa init-pki"
   ./easyrsa init-pki
   echo "./easyrsa build-ca nopass"
-  sed '/RANDFILE/d' pki/openssl-easyrsa.cnf # https://github.com/OpenVPN/easy-rsa/issues/261#issuecomment-444408090
   ./easyrsa build-ca nopass
   echo "./easyrsa gen-req ${ENTITYNAME} nopass"
   ./easyrsa gen-req ${ENTITYNAME} nopass
   echo "./easyrsa sign-req client ${ENTITYNAME}"
-  ./easyrsa sign-req client ${ENTITYNAME}
-  echo "CRT"
+  ./easyrsa sign-req server ${ENTITYNAME}
+  cp pki/private/${ENTITYNAME}.key /etc/openvpn/
 }
 
 argument="$1"
