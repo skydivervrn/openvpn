@@ -23,9 +23,13 @@ client() {
 
 crt() {
   cd /root/openvpn-ca
+  echo "./easyrsa init-pki"
   ./easyrsa init-pki
+  echo "./easyrsa build-ca nopass"
   ./easyrsa build-ca nopass
+  echo "./easyrsa gen-req ${ENTITYNAME}"
   ./easyrsa gen-req ${ENTITYNAME}
+  echo "./easyrsa sign-req client ${ENTITYNAME}"
   ./easyrsa sign-req client ${ENTITYNAME}
   echo "CRT"
 }
