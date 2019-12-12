@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
+ENTITYNAME=${ENTITYNAME:-EntityName}
+
 display_usage() {
   echo
   echo "Usage: $0"
   echo
   echo " -h, --help   Display usage instructions"
-  echo " --master   Using server as master node"
-  echo " --slave    Using server as slave node"
-  echo " --witness    Using server as witness node"
+  echo " --server Using as server"
+  echo " --client   Using as client"
+  echo " --crt    Using for certificates creation"
   echo
 }
 
@@ -21,10 +23,10 @@ client() {
 
 crt() {
   cd /root/openvpn-ca
-  source vars
-  ./clean-all
-  ./build-ca
-
+  ./easyrsa init-pki
+  ./easyrsa build-ca nopass
+  ./easyrsa gen-req ${ENTITYNAME}
+  ./easyrsa sign-req client ${ENTITYNAME}
   echo "CRT"
 }
 
