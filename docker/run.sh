@@ -28,8 +28,8 @@ crt() {
   echo "./easyrsa build-ca nopass"
   ./easyrsa build-ca nopass
   sed '/RANDFILE/d' file # https://github.com/OpenVPN/easy-rsa/issues/261#issuecomment-444408090
-  echo "./easyrsa gen-req ${ENTITYNAME}"
-  ./easyrsa gen-req ${ENTITYNAME}
+  echo "./easyrsa gen-req ${ENTITYNAME} nopass"
+  ./easyrsa gen-req ${ENTITYNAME} nopass
   echo "./easyrsa sign-req client ${ENTITYNAME}"
   ./easyrsa sign-req client ${ENTITYNAME}
   echo "CRT"
