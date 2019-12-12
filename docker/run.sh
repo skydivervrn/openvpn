@@ -26,7 +26,7 @@ crt() {
   echo "./easyrsa init-pki"
   ./easyrsa init-pki
   echo "./easyrsa build-ca nopass"
-  sed '/RANDFILE/d' file # https://github.com/OpenVPN/easy-rsa/issues/261#issuecomment-444408090
+  sed '/RANDFILE/d' pki/openssl-easyrsa.cnf # https://github.com/OpenVPN/easy-rsa/issues/261#issuecomment-444408090
   ./easyrsa build-ca nopass
   echo "./easyrsa gen-req ${ENTITYNAME} nopass"
   ./easyrsa gen-req ${ENTITYNAME} nopass
