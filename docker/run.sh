@@ -6,7 +6,8 @@ CLIENT_COUNT=${CLIENT_COUNT:-3}
 OPENVPN_PORT=${OPENVPN_PORT:-1194}
 
 server_run() {
-  openvpn "/etc/openvpn/server.conf"
+  echo "Run exec openvpn"
+  exec "openvpn" "--config" "/etc/openvpn/server.conf"
 }
 
 client() {
