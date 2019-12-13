@@ -1,0 +1,11 @@
+version: '3.7'
+services:
+  openvpn:
+    build: .
+    volumes:
+      - openvpn:/etc/openvpn
+      - ca:/root/openvpn-ca
+
+volumes:
+  openvpn:
+  ca:
