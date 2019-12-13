@@ -15,4 +15,4 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSI
 RUN make-cadir /root/openvpn-ca
 COPY docker/ .
 
-ENTRYPOINT ["run.sh"]
+ENTRYPOINT ["/run.sh"]
