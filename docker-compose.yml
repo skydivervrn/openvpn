@@ -5,6 +5,15 @@ services:
     volumes:
       - openvpn:/etc/openvpn
       - ca:/root/openvpn-ca
+    devices:
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - target: 1194
+        published: 8080
+        protocol: udp
+        mode: host
 
 volumes:
   openvpn:
