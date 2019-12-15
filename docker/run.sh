@@ -6,7 +6,9 @@ OPENVPN_PORT=${OPENVPN_PORT:-1194}
 
 server_run() {
   echo "Run exec openvpn"
-  exec "openvpn" "--config" "/etc/openvpn/server.conf"
+  cd /etc/openvpn
+  dockerize -template /etc/openvpn/server/server.tmpl.conf:/etc/openvpn/server/server.conf
+  exec "openvpn" "--config" "/etc/openvpn/server/server.conf"
 }
 
 client() {
