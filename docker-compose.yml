@@ -2,6 +2,9 @@ version: '3.7'
 services:
   openvpn:
     build: .
+    environment:
+      CLIENTS_OPENVPN: "client1:10.8.0.11:22:tcp,client2:10.8.0.12:80:udp"
+      OPENVPN_PORT: "1194"
     volumes:
       - openvpn:/etc/openvpn
       - ca:/root/openvpn-ca
@@ -10,9 +13,13 @@ services:
     cap_add:
       - NET_ADMIN
     ports:
-      - target: 1194
-        published: 8080
+      - target: 8080
+        published: 1194
         protocol: udp
+        mode: host
+      - target: 22
+        published: 8081
+        protocol: tcp
         mode: host
 
 volumes:

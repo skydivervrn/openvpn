@@ -1,87 +1,113 @@
 #!/usr/bin/env bash
 set -e
 
-CLIENT_COUNT=${CLIENT_COUNT:-3}
-OPENVPN_PORT=${OPENVPN_PORT:-1194}
+export EXTERNAL_IP=$(dig +short myip.opendns.com @resolver1.opendns.com)
 
+function elog() {
+    datestring=`date +"%Y-%m-%d %H:%M:%S"`
+    echo "${datestring}  ${@}"
+}
 server_run() {
-  echo "Run exec openvpn"
+  elog "Run exec openvpn"
   iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o tun0 -j MASQUERADE
   iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
   cd /etc/openvpn
-  dockerize -template /etc/openvpn/server/server.tmpl.conf:/etc/openvpn/server/server.conf
+  dockerize -template /etc/openvpn/templates/server.tmpl.conf:/etc/openvpn/server/server.conf
+  cd /etc/openvpn
   exec "openvpn" "--config" "/etc/openvpn/server/server.conf"
 }
 
 client() {
-  echo "Client"
+  elog "Client"
 }
 
-make_base_conf() {
-  export EXTERNAL_IP=$(dig +short myip.opendns.com @resolver1.opendns.com)
-  dockerize -template /etc/openvpn/client-configs/base.tmpl.conf:/etc/openvpn/client-configs/base.conf
+make_client_conf() {
+  dockerize -template /etc/openvpn/templates/base.tmpl.conf:/etc/openvpn/client-configs/base.conf
+  /etc/openvpn/client-configs/make_config.sh ${OVPN_CLIENT_NAME}
 }
 
 client_crt() {
   cd /root/openvpn-ca
-  make_base_conf
-  for i in $(seq 1 $CLIENT_COUNT); do
-    echo "Start creating client${i} cert"
-    if [[ -f pki/private/client${i}.key ]]; then
-      echo "Client key client${i} exist"
+  IFS=',' # hyphen (-) is set as delimiter
+  read -ra CLIENT_CONFIG <<< "$CLIENTS_OPENVPN" # str is read into an array as tokens separated by IFS
+  for i in "${CLIENT_CONFIG[@]}"; do # access each element of array
+    IFS=':'
+    read -ra CLIENT_IP_SET <<< "$i"
+    export OVPN_CLIENT_NAME="${CLIENT_IP_SET[0]}"
+    export OVPN_CLIENT_IP="${CLIENT_IP_SET[1]}"
+    export OVPN_CLIENT_PORT_NAT="${CLIENT_IP_SET[2]}"
+    export OVPN_CLIENT_PORT_NAT_PROTO="${CLIENT_IP_SET[3]}"
+    elog "Check creating ${OVPN_CLIENT_NAME} cert....."
+    if [[ -f pki/private/${OVPN_CLIENT_NAME}.key ]]; then
+      elog "Client key ${OVPN_CLIENT_NAME} exist"
     else
-      ./easyrsa gen-req client${i} nopass
-      ./easyrsa sign-req client client${i}
-      cp pki/private/client${i}.key pki/issued/client${i}.crt /etc/openvpn/client-configs/keys/
-      /etc/openvpn/client-configs/make_config.sh client${i}
-      echo "End creating client${i} cert"
+      elog "Creating ${OVPN_CLIENT_NAME} key and cert..."
+      export EASYRSA_REQ_CN=${OVPN_CLIENT_NAME}
+      ./easyrsa gen-req ${OVPN_CLIENT_NAME} nopass
+      ./easyrsa sign-req client ${OVPN_CLIENT_NAME}
+      cp pki/private/${OVPN_CLIENT_NAME}.key pki/issued/${OVPN_CLIENT_NAME}.crt /etc/openvpn/client-configs/keys/
+      export EASYRSA_REQ_CN=""
+      elog "...creation ${OVPN_CLIENT_NAME} key and cert complete"
     fi
+    make_client_conf
+    if [[ -z "${OVPN_CLIENT_IP}" ]]; then
+      elog "Client static IP is not set"
+    else
+      elog "Starting template client ccd.."
+      dockerize -template /etc/openvpn/templates/client.tmpl:/etc/openvpn/ccd/${OVPN_CLIENT_NAME}
+      elog "Client ccd created"
+    fi
+    if [[ -z "${OVPN_CLIENT_PORT_NAT}" ]]; then
+      elog "Port for client ${OVPN_CLIENT_NAME} wasn't specified"
+    else
+      iptables -t nat -A PREROUTING -p ${OVPN_CLIENT_PORT_NAT_PROTO} --dport ${OVPN_CLIENT_PORT_NAT} -j DNAT --to-dest ${OVPN_CLIENT_IP}:${OVPN_CLIENT_PORT_NAT}
+    fi
+  export OVPN_CLIENT_NAME=""
+  export OVPN_CLIENT_IP=""
+  export OVPN_CLIENT_PORT_NAT=""
+  export OVPN_CLIENT_PORT_NAT_PROTO=""
   done
-  echo  "Creation client certificates - complete"
+  IFS=' ' # reset to default value after usage
+  elog "Creation client certificates - complete"
 }
 
 server_crt() {
   cd /root/openvpn-ca
-  if [[ -d /etc/openvpn/client-configs/keys ]]; then
-    echo "Dir: /etc/openvpn/client-configs/keys exist"
-  else
-    mkdir -p /etc/openvpn/client-configs/keys
-    mkdir -p /etc/openvpn/client-configs/files
-  fi
   if [[ -f pki/private/ca.key ]]; then
-    echo "File:  pki/private/ca.key - already exist"
+    elog "File:  pki/private/ca.key - already exist"
   else
-    echo "Execute command: ./easyrsa init-pki"
+    elog "Execute command: ./easyrsa init-pki"
     ./easyrsa init-pki
-    echo "Execute command: ./easyrsa build-ca nopass"
+    elog "Execute command: ./easyrsa build-ca nopass"
     ./easyrsa build-ca nopass
     cp pki/ca.crt /etc/openvpn/
     cp pki/ca.crt /etc/openvpn/client-configs/keys/
     chmod -R 700 /etc/openvpn/client-configs
   fi
   if [[ -f pki/private/server.key ]]; then
-    echo "File: server.key exist"
+    elog "File: server.key exist"
   else
-    echo "Execute command: ./easyrsa gen-req server nopass"
+    elog "Execute command: ./easyrsa gen-req server nopass"
     ./easyrsa gen-req server nopass
-    echo "Execute command: ./easyrsa sign-req server server"
+    elog "Execute command: ./easyrsa sign-req server server"
     ./easyrsa sign-req server server
-    echo "Execute command: ./easyrsa gen-dh"
+    elog "Execute command: ./easyrsa gen-dh"
     cp pki/private/server.key pki/issued/server.crt /etc/openvpn/
   fi
   if [[ -f pki/dh.pem ]]; then
-    echo "File: pki/dh.pem exist"
+    elog "File: pki/dh.pem exist"
   else
     ./easyrsa gen-dh
     cp pki/dh.pem /etc/openvpn/
   fi
   if [[ -f ta.key ]]; then
-    echo "File: ta.key exist"
+    elog "File: ta.key exist"
   else
     openvpn --genkey --secret ta.key
     cp ta.key /etc/openvpn/
     cp ta.key /etc/openvpn/client-configs/keys/
   fi
+  iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 }
 
 server_crt
