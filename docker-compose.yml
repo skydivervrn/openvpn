@@ -13,8 +13,8 @@ services:
     cap_add:
       - NET_ADMIN
     ports:
-      - target: 8080
-        published: 1194
+      - target: 1194
+        published: 8080
         protocol: udp
         mode: host
       - target: 22
