@@ -6,6 +6,8 @@ OPENVPN_PORT=${OPENVPN_PORT:-1194}
 
 server_run() {
   echo "Run exec openvpn"
+  iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o tun0 -j MASQUERADE
+  iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
   cd /etc/openvpn
   dockerize -template /etc/openvpn/server/server.tmpl.conf:/etc/openvpn/server/server.conf
   exec "openvpn" "--config" "/etc/openvpn/server/server.conf"
